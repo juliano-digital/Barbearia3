@@ -5,8 +5,8 @@ import { isAdminAuthenticated, signInAdmin } from '../lib/supabase';
 
 export function AdminLoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('admin@barbearia.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('admin@gmail.com');
+  const [password, setPassword] = useState('123456');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -49,18 +49,18 @@ export function AdminLoginPage() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               className="mt-2 w-full rounded-xl border border-stone-700 bg-stone-950 px-4 py-3 text-white outline-none"
-              placeholder="admin@barbearia.com"
+              placeholder="admin@gmail.com"
             />
           </label>
 
           <label className="block text-sm text-stone-300">
             Senha
             <input
-              type="password"
+              type="text"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="mt-2 w-full rounded-xl border border-stone-700 bg-stone-950 px-4 py-3 text-white outline-none"
-              placeholder="••••••••"
+              placeholder="123456"
             />
           </label>
 
@@ -79,9 +79,8 @@ export function AdminLoginPage() {
         <div className="mt-6 rounded-2xl border border-stone-800 bg-stone-950 p-4 text-sm text-stone-300">
           <div className="flex items-center gap-2 text-[#f6e5b3]">
             <LockKeyhole className="h-4 w-4" />
-            Acesso restrito a administradores.
+            Acesso restrito a administrador
           </div>
-          <p className="mt-2 text-stone-400">Em produção, o primeiro administrador deve ser criado por processo controlado no Supabase Auth.</p>
         </div>
       </div>
     </div>

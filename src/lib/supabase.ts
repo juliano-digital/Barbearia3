@@ -307,7 +307,7 @@ export async function getSlotAvailability(
     throw new Error('O serviço selecionado não está disponível.');
   }
   const duration = service.duration_minutes;
-  const stepMinutes = 30;
+  const stepMinutes = duration;
   const startMinutes = 9 * 60;
   const endMinutes = 18 * 60;
 
@@ -340,14 +340,16 @@ export async function getSlotAvailability(
   const reservedSlots: string[] = [];
   for (let minutes = startMinutes; minutes + duration <= endMinutes; minutes += stepMinutes) {
     const candidateStart = minutesToTime(minutes);
-    const candidateEnd = minutesToTime(minutes + duration);
+    const startsAtBusyAppointment = busyRanges.some((range) => range.start === minutes);
     const overlapsBusy = busyRanges.some((range) => {
-      const candidateStartMinutes = timeToMinutes(candidateStart);
-      const candidateEndMinutes = timeToMinutes(candidateEnd);
-      return candidateStartMinutes < range.end && candidateEndMinutes > range.start;
+      return minutes < range.end && minutes + duration > range.start;
     });
 
-    (overlapsBusy ? reservedSlots : availableSlots).push(candidateStart);
+    if (startsAtBusyAppointment) {
+      reservedSlots.push(candidateStart);
+    } else if (!overlapsBusy) {
+      availableSlots.push(candidateStart);
+    }
   }
 
   return { availableSlots, reservedSlots };

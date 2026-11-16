@@ -130,10 +130,9 @@ export function PublicBookingPage() {
         if (!active) return;
         const availableSlots = new Set(barberSlots.flatMap((item) => item.availableSlots));
         const reservedSlots = new Set(barberSlots.flatMap((item) => item.reservedSlots));
-        const nextSlots = [...new Set([...availableSlots, ...reservedSlots])]
+        setSlots([...new Set([...availableSlots, ...reservedSlots])]
           .sort()
-          .map((time) => ({ time, reserved: !availableSlots.has(time) }));
-        setSlots(nextSlots);
+          .map((time) => ({ time, reserved: !availableSlots.has(time) })));
         if (selectedTime && !availableSlots.has(selectedTime)) {
           setSelectedTime('');
         }
@@ -187,6 +186,7 @@ export function PublicBookingPage() {
       });
 
       setBooking(appointment);
+      setAvailabilityRefresh((current) => current + 1);
     } catch (error) {
       setBookingError(error instanceof Error ? error.message : 'Não foi possível concluir o agendamento.');
       setSelectedTime('');
