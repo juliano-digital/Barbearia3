@@ -12,11 +12,11 @@ import { PublicBookingPage } from './pages/PublicBookingPage';
 import { isAdminAuthenticated, signOutAdmin } from './lib/supabase';
 
 const adminNav = [
-  { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/admin/agendamentos', label: 'Agenda', icon: CalendarRange },
-  { to: '/admin/servicos', label: 'Serviços', icon: Scissors },
-  { to: '/admin/barbeiros', label: 'Barbeiros', icon: Users },
-  { to: '/admin/configuracoes', label: 'Configurações', icon: Settings },
+  { to: '/admin/dashboard', label: 'Dashboard', mobileLabel: 'Painel', icon: LayoutDashboard },
+  { to: '/admin/agendamentos', label: 'Agenda', mobileLabel: 'Agenda', icon: CalendarRange },
+  { to: '/admin/servicos', label: 'Serviços', mobileLabel: 'Serviços', icon: Scissors },
+  { to: '/admin/barbeiros', label: 'Barbeiros', mobileLabel: 'Equipe', icon: Users },
+  { to: '/admin/configuracoes', label: 'Configurações', mobileLabel: 'Ajustes', icon: Settings },
 ];
 
 function ProtectedAdminLayout({ children }: { children: React.ReactNode }) {
@@ -75,7 +75,7 @@ function ProtectedAdminLayout({ children }: { children: React.ReactNode }) {
         </button>
       </aside>
 
-      <main className="lg:ml-72">
+      <main className="pb-20 lg:ml-72 lg:pb-0">
         <header className="border-b border-stone-800 bg-[#0f1217]/90 backdrop-blur">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
             <div>
@@ -92,6 +92,27 @@ function ProtectedAdminLayout({ children }: { children: React.ReactNode }) {
 
         <div className="mx-auto max-w-7xl p-6">{children}</div>
       </main>
+
+      <nav
+        aria-label="Navegação administrativa"
+        className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-stone-800 bg-[#12161d]/95 px-1 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur lg:hidden"
+      >
+        {adminNav.map(({ to, mobileLabel, icon: Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            aria-label={mobileLabel}
+            className={({ isActive }) =>
+              `flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg text-[10px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#d4af6b] ${
+                isActive ? 'text-[#d4af6b]' : 'text-stone-400 hover:text-white'
+              }`
+            }
+          >
+            <Icon aria-hidden="true" className="h-5 w-5" />
+            <span>{mobileLabel}</span>
+          </NavLink>
+        ))}
+      </nav>
     </div>
   );
 }
