@@ -80,6 +80,11 @@ export interface Appointment {
   updated_at: string;
 }
 
+export type CustomerAppointment = Pick<
+  Appointment,
+  'id' | 'booking_code' | 'service_id' | 'barber_id' | 'appointment_date' | 'start_time' | 'end_time' | 'status'
+>;
+
 export interface AppointmentDraft {
   customer_name: string;
   phone: string;

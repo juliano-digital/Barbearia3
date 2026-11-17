@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AtSign, Clock3, MapPin, MessageCircle, Phone, ShieldCheck } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
-import { createAppointment, getBarbers, getBusinessSettings, getAvailableSlots, getServices, getSlotAvailability } from '../lib/supabase';
+import { createAppointment, getBarbers, getBusinessSettings, getAvailableSlots, getBrowserAppointmentReminders, getCustomerAppointments, getServices, getSlotAvailability, rememberBrowserAppointment } from '../lib/supabase';
 import { defaultThemeColors } from '../data/mockData';
-import type { Appointment, Barber, BusinessSettings, Service } from '../types';
+import type { Appointment, Barber, BusinessSettings, CustomerAppointment, Service } from '../types';
 import { BottomNav } from '../components/BottomNav';
 
 function formatPhone(value: string) {
@@ -56,6 +56,17 @@ export function PublicBookingPage() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [notes, setNotes] = useState('');
   const [booking, setBooking] = useState<Appointment | null>(null);
+  const [browserAppointments, setBrowserAppointments] = useState<CustomerAppointment[]>(getBrowserAppointmentReminders);
+  const [myAppointments, setMyAppointments] = useState<CustomerAppointment[]>([]);
+  const [myAppointmentsLookup, setMyAppointmentsLookup] = useState('');
+  const [loadingMyAppointments, setLoadingMyAppointments] = useState(false);
+  const [myAppointmentsError, setMyAppointmentsError] = useState('');
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
+  const normalizedPhone = customerPhone.replace(/\D/g, '');
+  const normalizedName = customerName.trim();
+  const canLookUpAppointments = (normalizedName.match(/[a-zA-ZÀ-ÿ]/g)?.length ?? 0) >= 2
+    && normalizedPhone.length >= 4;
+  const appointmentsLookupKey = `${normalizedName.toLocaleLowerCase('pt-BR')}|${normalizedPhone}`;
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -92,6 +103,105 @@ export function PublicBookingPage() {
 
     void load();
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    if (!canLookUpAppointments) {
+      setMyAppointments([]);
+      setMyAppointmentsLookup('');
+      setMyAppointmentsError('');
+      setLoadingMyAppointments(false);
+      return;
+    }
+
+    const lookupName = normalizedName;
+    const lookupPhone = normalizedPhone;
+    const lookupKey = appointmentsLookupKey;
+    const matchingBooking: CustomerAppointment | null = booking
+      && booking.customer_name.trim().toLocaleLowerCase('pt-BR') === lookupName.toLocaleLowerCase('pt-BR')
+      && booking.phone.replace(/\D/g, '') === lookupPhone
+      ? {
+          id: booking.id,
+          booking_code: booking.booking_code,
+          service_id: booking.service_id,
+          barber_id: booking.barber_id,
+          appointment_date: booking.appointment_date,
+          start_time: booking.start_time,
+          end_time: booking.end_time,
+          status: booking.status,
+        }
+      : null;
+
+    setMyAppointments([]);
+    setMyAppointmentsLookup('');
+    setMyAppointmentsError('');
+    setLoadingMyAppointments(true);
+    const timeout = window.setTimeout(() => {
+      void getCustomerAppointments(lookupName, lookupPhone)
+        .then((appointments) => {
+          if (!active) return;
+          setMyAppointments(matchingBooking
+            ? [matchingBooking, ...appointments.filter((item) => item.id !== matchingBooking.id)]
+            : appointments);
+          setMyAppointmentsLookup(lookupKey);
+        })
+        .catch((error: unknown) => {
+          if (active) {
+            setMyAppointmentsError(error instanceof Error ? error.message : 'Não foi possível carregar seus agendamentos.');
+          }
+        })
+        .finally(() => {
+          if (active) setLoadingMyAppointments(false);
+        });
+    }, 350);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [appointmentsLookupKey, booking, canLookUpAppointments, normalizedName, normalizedPhone]);
+
+  const visibleCustomerAppointments = useMemo(() => {
+    const currentIdentityAppointments = canLookUpAppointments && myAppointmentsLookup === appointmentsLookupKey
+      ? myAppointments
+      : [];
+    const uniqueAppointments = new Map(
+      [...browserAppointments, ...currentIdentityAppointments].map((appointment) => [appointment.id, appointment]),
+    );
+    return [...uniqueAppointments.values()].filter((appointment) =>
+      !['cancelled', 'no_show'].includes(appointment.status)
+      && getAppointmentEndTimestamp(appointment) > currentTime,
+    );
+  }, [appointmentsLookupKey, browserAppointments, canLookUpAppointments, currentTime, myAppointments, myAppointmentsLookup]);
+
+  useEffect(() => {
+    const nextEndTime = myAppointments
+      .concat(browserAppointments)
+      .map(getAppointmentEndTimestamp)
+      .filter((timestamp) => timestamp > currentTime)
+      .sort((a, b) => a - b)[0];
+    if (nextEndTime === undefined) return;
+
+    const timeout = window.setTimeout(
+      () => setCurrentTime(Date.now()),
+      Math.max(0, nextEndTime - currentTime + 50),
+    );
+    return () => window.clearTimeout(timeout);
+  }, [browserAppointments, currentTime, myAppointments]);
+
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'barbearia-customer-reminders' || event.key === null) {
+        setBrowserAppointments(getBrowserAppointmentReminders());
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  useEffect(() => {
+    setBrowserAppointments(getBrowserAppointmentReminders());
+  }, [currentTime]);
 
   const selectedService = useMemo(
     () => services.find((service) => service.id === selectedServiceId),
@@ -180,13 +290,18 @@ export function PublicBookingPage() {
         appointment_date: selectedDate,
         start_time: selectedTime,
         end_time: addMinutesToTime(selectedTime, selectedService.duration_minutes),
-        status: 'pending',
+        status: 'confirmed',
         notes,
         price: selectedService.price,
       });
 
       setBooking(appointment);
+      setBrowserAppointments(rememberBrowserAppointment(appointment));
       setAvailabilityRefresh((current) => current + 1);
+      window.setTimeout(
+        () => document.getElementById('home-appointment-reminder')?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+        100,
+      );
     } catch (error) {
       setBookingError(error instanceof Error ? error.message : 'Não foi possível concluir o agendamento.');
       setSelectedTime('');
@@ -196,7 +311,13 @@ export function PublicBookingPage() {
     }
   };
 
-  const summaryReady = Boolean(selectedService && selectedDate && selectedTime && customerName && customerPhone);
+  const summaryReady = Boolean(
+    selectedService
+    && selectedDate
+    && selectedTime
+    && (customerName.match(/[a-zA-ZÀ-ÿ]/g)?.length ?? 0) >= 2
+    && customerPhone.replace(/\D/g, '').length >= 4,
+  );
   const theme = { ...defaultThemeColors, ...settings?.theme_colors };
 
   return (
@@ -285,6 +406,41 @@ export function PublicBookingPage() {
             <img src={settings?.cover_url ?? 'https://images.unsplash.com/photo-1517832606299-7ae9b720a186'} alt="Barbearia" className="h-[480px] w-full object-cover" />
           </div>
         </section>
+
+        {(canLookUpAppointments || browserAppointments.length > 0) && (
+          <section id="home-appointment-reminder" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-8 sm:px-6">
+            <div className="rounded-3xl border p-6" style={{ backgroundColor: theme.formPanel, borderColor: theme.formBorder }}>
+              <p className="text-xs uppercase tracking-[0.2em]" style={{ color: theme.barberAccent }}>Lembrete</p>
+              <h2 className="mt-2 text-2xl font-semibold" style={{ color: theme.title }}>Meus agendamentos</h2>
+              {loadingMyAppointments && <p className="mt-3 text-sm text-stone-400">Buscando agendamentos...</p>}
+              {myAppointmentsError && <p role="alert" className="mt-3 text-sm text-red-300">{myAppointmentsError}</p>}
+              {!loadingMyAppointments && !myAppointmentsError && visibleCustomerAppointments.length === 0 && (
+                <p className="mt-3 text-sm text-stone-400">Nenhum agendamento futuro encontrado para esses dados.</p>
+              )}
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {visibleCustomerAppointments.map((appointment) => (
+                  <article key={appointment.id} className="rounded-xl border border-stone-700 p-4 text-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="font-semibold" style={{ color: theme.reviewText }}>
+                        {services.find((service) => service.id === appointment.service_id)?.name ?? 'Serviço'}
+                      </p>
+                      <span className="shrink-0 rounded-full border border-stone-700 px-2 py-0.5 text-xs">
+                        {appointment.status === 'confirmed' ? 'Confirmado' : appointment.status === 'completed' ? 'Concluído' : 'Pendente'}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-stone-300">
+                      {appointment.appointment_date} · {appointment.start_time}–{appointment.end_time}
+                    </p>
+                    <p className="mt-1 text-stone-400">
+                      Barbeiro: {barbers.find((barber) => barber.id === appointment.barber_id)?.name ?? '—'}
+                    </p>
+                    <p className="mt-1 font-mono text-xs text-[#f6e5b3]">Código: {appointment.booking_code}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         <section id="barbeiros" className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
           <div className="mb-6 flex items-center justify-between">
@@ -453,23 +609,33 @@ export function PublicBookingPage() {
               <h2 className="mt-2 text-3xl font-semibold" style={{ color: theme.title }}>Finalize o agendamento</h2>
               <div className="mt-6 space-y-4">
                 <label className="block text-sm" style={{ color: theme.formText }}>
-                  Nome completo
+                  <span className="block">Nome completo</span>
+                  <span className="mt-1 block pl-4 text-xs font-medium text-red-500"><span aria-hidden="true">*</span> Obrigatório</span>
                   <input
                     value={customerName}
-                    onChange={(event) => setCustomerName(event.target.value)}
-                    className="mt-2 w-full rounded-xl border px-4 py-3 outline-none"
+                    onChange={(event) => {
+                      setCustomerName(event.target.value);
+                      setBooking(null);
+                    }}
+                    required
+                    className="mt-1 w-full rounded-xl border px-4 py-3 outline-none"
                     style={{ backgroundColor: theme.formField, borderColor: theme.formBorder, color: theme.formText }}
                     placeholder="Seu nome"
                   />
                 </label>
                 <label className="block text-sm" style={{ color: theme.formText }}>
-                  Telefone / WhatsApp
+                  <span className="block">Telefone / WhatsApp</span>
+                  <span className="mt-1 block pl-4 text-xs font-medium text-red-500"><span aria-hidden="true">*</span> Obrigatório</span>
                   <input
                     value={customerPhone}
-                    onChange={(event) => setCustomerPhone(formatPhone(event.target.value))}
-                    className="mt-2 w-full rounded-xl border px-4 py-3 outline-none"
+                    onChange={(event) => {
+                      setCustomerPhone(formatPhone(event.target.value));
+                      setBooking(null);
+                    }}
+                    required
+                    className="mt-1 w-full rounded-xl border px-4 py-3 outline-none"
                     style={{ backgroundColor: theme.formField, borderColor: theme.formBorder, color: theme.formText }}
-                    placeholder="(11) 99999-9999"
+                    placeholder="(51) 99999-9999"
                     inputMode="numeric"
                     maxLength={15}
                   />
@@ -526,6 +692,7 @@ export function PublicBookingPage() {
                   </button>
                 </>
               )}
+
             </div>
           </div>
         </section>
@@ -541,4 +708,8 @@ function addMinutesToTime(value: string, duration: number): string {
   const computedHours = Math.floor(totalMinutes / 60) % 24;
   const computedMinutes = totalMinutes % 60;
   return `${String(computedHours).padStart(2, '0')}:${String(computedMinutes).padStart(2, '0')}`;
+}
+
+function getAppointmentEndTimestamp(appointment: Pick<Appointment, 'appointment_date' | 'end_time'>): number {
+  return Date.parse(`${appointment.appointment_date}T${appointment.end_time}-03:00`);
 }

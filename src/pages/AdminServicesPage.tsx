@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ImageUrlField } from '../components/ImageUrlField';
 import { deleteService, getServices, saveService } from '../lib/supabase';
 import type { Service } from '../types';
 
@@ -107,6 +108,7 @@ export function AdminServicesPage() {
               Descrição
               <textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} className="mt-2 min-h-[88px] w-full rounded-xl border border-stone-700 bg-stone-950 px-4 py-3 text-white" />
             </label>
+            <ImageUrlField label="Imagem do serviço (URL)" folder="servicos" value={form.image_url} onChange={(image_url) => setForm({ ...form, image_url })} />
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block text-sm text-stone-300">
                 Preço

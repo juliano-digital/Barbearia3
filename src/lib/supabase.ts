@@ -1,13 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 import { defaultAppointments, defaultBarbers, defaultBusinessSettings, defaultServices, defaultThemeColors } from '../data/mockData';
-import type { Appointment, AppointmentDraft, Barber, BusinessSettings, Service } from '../types';
+import type { Appointment, AppointmentDraft, Barber, BusinessSettings, CustomerAppointment, Service } from '../types';
 
 const STORAGE_KEYS = {
   settings: 'barbearia-business-settings',
   services: 'barbearia-services',
   deletedServices: 'barbearia-deleted-services',
   barbers: 'barbearia-barbers',
+  deletedBarbers: 'barbearia-deleted-barbers',
   appointments: 'barbearia-appointments',
+  customerReminders: 'barbearia-customer-reminders',
   adminAuth: 'barbearia-admin-auth',
 };
 
@@ -15,6 +17,68 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
 export const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
+
+export async function uploadImage(file: File, folder: string): Promise<string> {
+  if (!file.type.startsWith('image/')) {
+    throw new Error('Selecione um arquivo de imagem.');
+  }
+  if (file.size > 15 * 1024 * 1024) {
+    throw new Error('A imagem deve ter no máximo 15 MB.');
+  }
+
+  const image = new Image();
+  const objectUrl = URL.createObjectURL(file);
+  const imageBlob = await new Promise<Blob>((resolve, reject) => {
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const maxDimension = 1600;
+      const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const context = canvas.getContext('2d');
+      if (!context) {
+        reject(new Error('Não foi possível processar a imagem.'));
+        return;
+      }
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(
+        (blob) => blob ? resolve(blob) : reject(new Error('Não foi possível processar a imagem.')),
+        'image/webp',
+        0.82,
+      );
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Não foi possível abrir o arquivo de imagem.'));
+    };
+    image.src = objectUrl;
+  });
+
+  if (imageBlob.size > 2 * 1024 * 1024) {
+    throw new Error('A imagem ficou muito grande após a compressão. Escolha outra imagem.');
+  }
+
+  if (supabase) {
+    const path = `${folder}/${crypto.randomUUID()}.webp`;
+    const { data, error } = await supabase.storage
+      .from('barbearia-images')
+      .upload(path, imageBlob, { contentType: 'image/webp', cacheControl: '3600' });
+    if (error) {
+      throw new Error(error.message);
+    }
+    return supabase.storage.from('barbearia-images').getPublicUrl(data.path).data.publicUrl;
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => typeof reader.result === 'string'
+      ? resolve(reader.result)
+      : reject(new Error('Não foi possível carregar a imagem.'));
+    reader.onerror = () => reject(new Error('Não foi possível carregar a imagem.'));
+    reader.readAsDataURL(imageBlob);
+  });
+}
 
 function readStored<T>(key: string, fallback: T): T {
   try {
@@ -178,7 +242,8 @@ export async function getBarbers(): Promise<Barber[]> {
 function mergeDefaultBarbers(barbers: Barber[]): Barber[] {
   const merged = new Map(defaultBarbers.map((barber) => [barber.id, barber]));
   barbers.forEach((barber) => merged.set(barber.id, barber));
-  return filterBarbers([...merged.values()]);
+  const deletedIds = new Set(readStored<string[]>(STORAGE_KEYS.deletedBarbers, []));
+  return filterBarbers([...merged.values()].filter((barber) => !deletedIds.has(barber.id)));
 }
 
 function filterBarbers(barbers: Barber[]): Barber[] {
@@ -209,7 +274,27 @@ export async function saveBarber(barber: Barber): Promise<Barber> {
     items.push(barber);
   }
   writeStored(STORAGE_KEYS.barbers, items);
+  const deletedIds = new Set(readStored<string[]>(STORAGE_KEYS.deletedBarbers, []));
+  deletedIds.delete(barber.id);
+  writeStored(STORAGE_KEYS.deletedBarbers, [...deletedIds]);
   return barber;
+}
+
+export async function deleteBarber(barberId: string): Promise<void> {
+  if (supabase) {
+    const { error } = await supabase.from('barbers').delete().eq('id', barberId);
+    if (error) {
+      throw new Error(error.message);
+    }
+    return;
+  }
+
+  const barbers = readStored<Barber[]>(STORAGE_KEYS.barbers, defaultBarbers)
+    .filter((barber) => barber.id !== barberId);
+  writeStored(STORAGE_KEYS.barbers, barbers);
+  const deletedIds = new Set(readStored<string[]>(STORAGE_KEYS.deletedBarbers, []));
+  deletedIds.add(barberId);
+  writeStored(STORAGE_KEYS.deletedBarbers, [...deletedIds]);
 }
 
 export async function getAppointments(): Promise<Appointment[]> {
@@ -222,6 +307,79 @@ export async function getAppointments(): Promise<Appointment[]> {
   }
 
   return readStored(STORAGE_KEYS.appointments, defaultAppointments);
+}
+
+export async function getCustomerAppointments(customerName: string, phone: string): Promise<CustomerAppointment[]> {
+  const normalizedName = customerName.trim();
+  const normalizedPhone = phone.replace(/\D/g, '');
+  if (normalizedName.length < 2 || normalizedPhone.length < 4) {
+    return [];
+  }
+
+  if (supabase) {
+    const { data, error } = await supabase.rpc('get_customer_appointments', {
+      p_customer_name: normalizedName,
+      p_phone: normalizedPhone,
+    });
+    if (error) {
+      throw new Error(error.message);
+    }
+    return (data ?? []) as CustomerAppointment[];
+  }
+
+  const normalizedNameKey = normalizedName.toLocaleLowerCase('pt-BR');
+  const now = Date.now();
+  return (await getAppointments())
+    .filter((appointment) =>
+      appointment.customer_name.trim().toLocaleLowerCase('pt-BR') === normalizedNameKey
+      && appointment.phone.replace(/\D/g, '') === normalizedPhone
+      && !['cancelled', 'no_show'].includes(appointment.status)
+      && Date.parse(`${appointment.appointment_date}T${appointment.end_time}-03:00`) > now,
+    )
+    .map(({ id, booking_code, service_id, barber_id, appointment_date, start_time, end_time, status }) => ({
+      id,
+      booking_code,
+      service_id,
+      barber_id,
+      appointment_date,
+      start_time,
+      end_time,
+      status,
+    }))
+    .sort((a, b) => a.appointment_date.localeCompare(b.appointment_date) || a.start_time.localeCompare(b.start_time));
+}
+
+export function getBrowserAppointmentReminders(): CustomerAppointment[] {
+  const reminders = readStored<CustomerAppointment[]>(STORAGE_KEYS.customerReminders, []);
+  const activeReminders = reminders.filter((appointment) =>
+    appointment
+    && typeof appointment.id === 'string'
+    && !['cancelled', 'no_show'].includes(appointment.status)
+    && Date.parse(`${appointment.appointment_date}T${appointment.end_time}-03:00`) > Date.now(),
+  );
+  if (activeReminders.length !== reminders.length) {
+    writeStored(STORAGE_KEYS.customerReminders, activeReminders);
+  }
+  return activeReminders;
+}
+
+export function rememberBrowserAppointment(appointment: Appointment): CustomerAppointment[] {
+  const reminder: CustomerAppointment = {
+    id: appointment.id,
+    booking_code: appointment.booking_code,
+    service_id: appointment.service_id,
+    barber_id: appointment.barber_id,
+    appointment_date: appointment.appointment_date,
+    start_time: appointment.start_time,
+    end_time: appointment.end_time,
+    status: appointment.status,
+  };
+  const reminders = [
+    reminder,
+    ...getBrowserAppointmentReminders().filter((item) => item.id !== reminder.id),
+  ];
+  writeStored(STORAGE_KEYS.customerReminders, reminders);
+  return reminders;
 }
 
 export async function saveAppointment(appointment: Appointment): Promise<Appointment> {
@@ -244,10 +402,30 @@ export async function saveAppointment(appointment: Appointment): Promise<Appoint
   return appointment;
 }
 
+export async function deleteAppointment(appointmentId: string): Promise<void> {
+  if (supabase) {
+    const { error } = await supabase.from('appointments').delete().eq('id', appointmentId);
+    if (error) {
+      throw new Error(error.message);
+    }
+    return;
+  }
+
+  const appointments = readStored<Appointment[]>(STORAGE_KEYS.appointments, defaultAppointments)
+    .filter((appointment) => appointment.id !== appointmentId);
+  writeStored(STORAGE_KEYS.appointments, appointments);
+}
+
 export async function createAppointment(input: AppointmentDraft): Promise<Appointment> {
+  const phoneDigits = input.phone.replace(/\D/g, '');
+  const customerInitial = input.customer_name.trim().charAt(0).toUpperCase();
+  if (!customerInitial || phoneDigits.length < 4) {
+    throw new Error('Informe nome e telefone válidos para gerar o código do agendamento.');
+  }
+
   const appointment: Appointment = {
     id: `appt-${crypto.randomUUID()}`,
-    booking_code: `BRR-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
+    booking_code: `${customerInitial}${phoneDigits.slice(-4)}`,
     customer_name: input.customer_name,
     phone: input.phone,
     barber_id: input.barber_id,

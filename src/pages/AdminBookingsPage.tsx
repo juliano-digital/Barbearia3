@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
-import { getAppointments, getBarbers, getServices, saveAppointment } from '../lib/supabase';
+import { Search, Trash2 } from 'lucide-react';
+import { deleteAppointment, getAppointments, getBarbers, getServices, saveAppointment } from '../lib/supabase';
 import type { Appointment, Barber, Service } from '../types';
 
 export function AdminBookingsPage() {
@@ -52,6 +52,21 @@ export function AdminBookingsPage() {
     }
   };
 
+  const handleDelete = async (appointment: Appointment) => {
+    const confirmed = window.confirm('Confirmar exclusão definitiva?');
+    if (!confirmed) {
+      return;
+    }
+
+    setError('');
+    try {
+      await deleteAppointment(appointment.id);
+      setAppointments((current) => current.filter((item) => item.id !== appointment.id));
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? `Não foi possível excluir o agendamento: ${deleteError.message}` : 'Não foi possível excluir o agendamento.');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -93,6 +108,7 @@ export function AdminBookingsPage() {
                 <th className="px-4 py-3">Código</th>
                 <th className="px-4 py-3">Cliente</th>
                 <th className="px-4 py-3">Serviço</th>
+                <th className="px-4 py-3">Observações</th>
                 <th className="px-4 py-3">Barbeiro</th>
                 <th className="px-4 py-3">Data</th>
                 <th className="px-4 py-3">Status</th>
@@ -110,6 +126,9 @@ export function AdminBookingsPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3">{serviceMap.get(item.service_id) ?? '—'}</td>
+                  <td className="max-w-xs whitespace-normal break-words px-4 py-3 text-stone-300">
+                    {item.notes?.trim() || '—'}
+                  </td>
                   <td className="px-4 py-3">{barberMap.get(item.barber_id) ?? '—'}</td>
                   <td className="px-4 py-3">{item.appointment_date} · {item.start_time}</td>
                   <td className="px-4 py-3">
@@ -117,7 +136,15 @@ export function AdminBookingsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
-                      <button type="button" onClick={() => void updateStatus(item, 'confirmed')} className="rounded-full border border-emerald-500/50 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-200">Confirmar</button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDelete(item)}
+                        aria-label={`Excluir agendamento ${item.booking_code}`}
+                        title="Excluir agendamento"
+                        className="rounded-full border border-red-500/50 bg-red-500/10 p-1.5 text-red-200 transition hover:bg-red-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                      >
+                        <Trash2 aria-hidden="true" className="h-4 w-4" />
+                      </button>
                       <button type="button" onClick={() => void updateStatus(item, 'cancelled')} className="rounded-full border border-red-500/50 bg-red-500/10 px-2 py-1 text-xs text-red-200">Cancelar</button>
                       <button type="button" onClick={() => void updateStatus(item, 'completed')} className="rounded-full border border-sky-500/50 bg-sky-500/10 px-2 py-1 text-xs text-sky-200">Concluído</button>
                     </div>
