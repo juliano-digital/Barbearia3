@@ -3,6 +3,7 @@ import { ImageUrlField } from '../components/ImageUrlField';
 import { getBusinessSettings, saveBusinessSettings } from '../lib/supabase';
 import { defaultThemeColors } from '../data/mockData';
 import type { BusinessSettings, ThemeColors } from '../types';
+import brandIcon from '../assets/icon/192.png';
 
 const emptySettings: BusinessSettings = {
   id: 'business-1',
@@ -104,7 +105,10 @@ export function AdminSettingsPage() {
             Slogan
             <input value={settings.slogan} onChange={(event) => setSettings({ ...settings, slogan: event.target.value })} className="mt-2 w-full rounded-xl border border-stone-700 bg-stone-950 px-4 py-3 text-white" />
           </label>
-          <ImageUrlField label="Logotipo (URL)" folder="logotipo" value={settings.logo_url} onChange={(logo_url) => setSettings({ ...settings, logo_url })} />
+          <div className="flex items-center gap-3 text-sm text-stone-300">
+            <img src={brandIcon} alt="Logotipo Royal Barber" className="h-12 w-12 rounded-xl object-cover" />
+            <span>Logotipo do projeto</span>
+          </div>
           <ImageUrlField label="Capa (URL)" folder="capa" value={settings.cover_url} onChange={(cover_url) => setSettings({ ...settings, cover_url })} />
           <label className="block text-sm text-stone-300">
             Endereço

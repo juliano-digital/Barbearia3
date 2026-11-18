@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowRight, LockKeyhole } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { isAdminAuthenticated, signInAdmin } from '../lib/supabase';
+import brandIcon from '../assets/icon/192.png';
 
 export function AdminLoginPage() {
   const navigate = useNavigate();
@@ -36,7 +37,7 @@ export function AdminLoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-[#0a0d10] px-4 py-12 text-stone-100">
       <div className="w-full max-w-md rounded-3xl border border-stone-800 bg-[#11161d] p-8 shadow-soft">
         <div className="mb-8 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#d4af6b] text-2xl font-bold text-[#0a0d10]">RB</div>
+          <img src={brandIcon} alt="Royal Barber" className="mx-auto h-16 w-16 rounded-2xl object-cover" />
           <h1 className="mt-5 text-3xl font-semibold text-white">Área administrativa</h1>
           <p className="mt-2 text-sm text-stone-400">Acesse o painel para gerenciar agenda e serviços.</p>
         </div>

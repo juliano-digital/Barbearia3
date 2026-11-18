@@ -5,6 +5,7 @@ import { createAppointment, getBarbers, getBusinessSettings, getAvailableSlots, 
 import { defaultThemeColors } from '../data/mockData';
 import type { Appointment, Barber, BusinessSettings, CustomerAppointment, Service } from '../types';
 import { BottomNav } from '../components/BottomNav';
+import brandIcon from '../assets/icon/192.png';
 
 function formatPhone(value: string) {
   const digits = value.replace(/\D/g, '').slice(0, 11);
@@ -325,7 +326,7 @@ export function PublicBookingPage() {
       <header className="border-b border-stone-800 backdrop-blur" style={{ backgroundColor: theme.navbar }}>
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <img className="h-10 w-10 rounded-full object-cover" src={settings?.logo_url ?? ''} alt={settings?.business_name} />
+            <img className="h-10 w-10 rounded-full object-cover" src={brandIcon} alt="Royal Barber" />
             <div>
               <p className="text-lg font-semibold" style={{ color: theme.title }}>{settings?.business_name ?? 'Barbearia'}</p>
             </div>
@@ -459,21 +460,12 @@ export function PublicBookingPage() {
               className="rounded-2xl border p-5 text-left transition hover:brightness-110"
               style={{ backgroundColor: theme.barberCard, borderColor: selectedBarberId === 'any' ? theme.barberAccent : theme.subBackground }}
             >
-              {settings?.logo_url ? (
-                <img
-                  src={settings.logo_url}
-                  alt={`Logo ${settings.business_name || 'Royal Barber'}`}
-                  className="mb-3 h-12 w-12 rounded-xl border object-contain p-1"
-                  style={{ borderColor: theme.barberAccent, backgroundColor: theme.subBackground }}
-                />
-              ) : (
-                <div
-                  className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl border text-sm font-bold"
-                  style={{ borderColor: theme.barberAccent, backgroundColor: theme.subBackground, color: theme.barberAccent }}
-                >
-                  RB
-                </div>
-              )}
+              <img
+                src={brandIcon}
+                alt="Royal Barber"
+                className="mb-3 h-12 w-12 rounded-xl border object-cover"
+                style={{ borderColor: theme.barberAccent, backgroundColor: theme.subBackground }}
+              />
               <h3 className="text-lg font-semibold" style={{ color: theme.barberTitle }}>Qualquer profissional disponível</h3>
               <div className="my-2 h-0.5 w-10 rounded-full" style={{ backgroundColor: theme.barberAccent }} />
               <p className="mt-2 text-sm" style={{ color: theme.barberDescription }}>Escolha a melhor opção conforme a agenda.</p>

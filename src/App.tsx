@@ -11,6 +11,7 @@ import { AdminSettingsPage } from './pages/AdminSettingsPage';
 import { PublicBookingPage } from './pages/PublicBookingPage';
 import { isAdminAuthenticated, signOutAdmin } from './lib/supabase';
 import { PwaExperience } from './components/PwaExperience';
+import brandIcon from './assets/icon/192.png';
 
 const adminNav = [
   { to: '/admin/dashboard', label: 'Dashboard', mobileLabel: 'Painel', icon: LayoutDashboard },
@@ -44,7 +45,7 @@ function ProtectedAdminLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-[#0b0d11] text-stone-50">
       <aside className="fixed inset-y-0 left-0 hidden w-72 border-r border-stone-800 bg-[#12161d] p-6 lg:block">
         <div className="mb-8 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#d4af6b] text-sm font-bold text-[#0b0d11]">RB</div>
+          <img src={brandIcon} alt="Royal Barber" className="h-11 w-11 rounded-xl object-cover" />
           <div>
             <p className="text-xs uppercase tracking-[0.25em] text-stone-400">Admin</p>
             <h2 className="text-lg font-semibold text-white">Royal Barber</h2>
