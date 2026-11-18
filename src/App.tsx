@@ -10,6 +10,7 @@ import { AdminServicesPage } from './pages/AdminServicesPage';
 import { AdminSettingsPage } from './pages/AdminSettingsPage';
 import { PublicBookingPage } from './pages/PublicBookingPage';
 import { isAdminAuthenticated, signOutAdmin } from './lib/supabase';
+import { PwaExperience } from './components/PwaExperience';
 
 const adminNav = [
   { to: '/admin/dashboard', label: 'Dashboard', mobileLabel: 'Painel', icon: LayoutDashboard },
@@ -120,6 +121,7 @@ function ProtectedAdminLayout({ children }: { children: React.ReactNode }) {
 export function App() {
   return (
     <BrowserRouter>
+      <PwaExperience />
       <Routes>
         <Route path="/" element={<PublicBookingPage />} />
         <Route path="/agendar" element={<PublicBookingPage />} />

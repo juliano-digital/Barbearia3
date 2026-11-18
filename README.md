@@ -57,6 +57,16 @@ npm run build
 3. Defina o diretório de publicação como `dist`.
 4. Garanta que a rota SPA esteja configurada com o arquivo `public/_redirects`.
 
+## Progressive Web App
+
+- O build gera o Service Worker com Workbox e publica `manifest.webmanifest` e os ícones em `dist`.
+- A instalação no Android aparece quando o navegador oferece `beforeinstallprompt`. No iPhone/iPad, use o menu de compartilhamento do navegador e escolha a opção para adicionar à tela inicial.
+- O Service Worker mantém o shell e os assets locais disponíveis, mas não armazena respostas do Supabase, autenticação ou dados privados. Agendamentos e outras operações continuam exigindo conexão.
+- Atualizações são aplicadas somente após a ação explícita “Atualizar aplicativo”, para que o usuário possa concluir operações em andamento.
+- Em produção, publique em HTTPS e mantenha o fallback de SPA do arquivo `public/_redirects`.
+
+Para validar localmente, execute `npm run build` e `npm run preview`; no Chrome DevTools, confira **Application > Manifest** e **Service Workers**. A instalação depende dos recursos oferecidos pelo navegador e sistema operacional; teste o fluxo manual em um dispositivo real.
+
 ## Estrutura principal
 
 - `src/pages` — páginas públicas e administrativas
