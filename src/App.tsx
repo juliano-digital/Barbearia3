@@ -29,7 +29,7 @@ function ProtectedAdminLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setReady(true);
     if (!isAdminAuthenticated()) {
-      navigate('/admin', { replace: true });
+      navigate('/admin/', { replace: true });
     }
   }, [navigate]);
 
@@ -39,7 +39,7 @@ function ProtectedAdminLayout({ children }: { children: React.ReactNode }) {
 
   const handleSignOut = async () => {
     await signOutAdmin();
-    navigate('/admin', { replace: true });
+    navigate('/admin/', { replace: true });
   };
 
   return (
