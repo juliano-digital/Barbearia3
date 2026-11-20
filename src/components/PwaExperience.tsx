@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Download, RefreshCw, Share2, X } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -18,6 +19,8 @@ function isIosDevice() {
 }
 
 export function PwaExperience() {
+  const { pathname } = useLocation();
+  const isAdminPath = pathname === '/admin' || pathname.startsWith('/admin/');
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [isIos, setIsIos] = useState(false);
@@ -33,6 +36,7 @@ export function PwaExperience() {
     setIsIos(isIosDevice());
 
     const handleBeforeInstallPrompt = (event: Event) => {
+      if (isAdminPath) return;
       event.preventDefault();
       if (!isAppInstalled()) {
         setInstallPrompt(event as BeforeInstallPromptEvent);
@@ -51,7 +55,7 @@ export function PwaExperience() {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
-  }, []);
+  }, [isAdminPath]);
 
   const handleInstall = async () => {
     if (!installPrompt) return;
@@ -79,9 +83,9 @@ export function PwaExperience() {
     }
   };
 
-  const showInstall = !installed && !dismissed && (installPrompt !== null || isIos);
+  const showInstall = !isAdminPath && !installed && !dismissed && (installPrompt !== null || isIos);
 
-  if (!showInstall && !needRefresh) return null;
+  if (isAdminPath || (!showInstall && !needRefresh)) return null;
 
   return (
     <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-40 w-[min(22rem,calc(100vw-2rem))] space-y-3">

@@ -8,6 +8,7 @@ export default defineConfig({
       manifest: false,
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,jpg,jpeg,woff,woff2,ttf,otf,webmanifest}'],
+        globIgnores: ['admin/**', 'iconadm/admin-icon-*.png'],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
         clientsClaim: false,

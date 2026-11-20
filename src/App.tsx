@@ -11,6 +11,7 @@ import { AdminSettingsPage } from './pages/AdminSettingsPage';
 import { PublicBookingPage } from './pages/PublicBookingPage';
 import { isAdminAuthenticated, signOutAdmin } from './lib/supabase';
 import { PwaExperience } from './components/PwaExperience';
+import { AdminPwaExperience } from './components/AdminPwaExperience';
 import brandIcon from './assets/icon/192.png';
 
 const adminNav = [
@@ -123,6 +124,7 @@ export function App() {
   return (
     <BrowserRouter>
       <PwaExperience />
+      <AdminPwaExperience />
       <Routes>
         <Route path="/" element={<PublicBookingPage />} />
         <Route path="/agendar" element={<PublicBookingPage />} />

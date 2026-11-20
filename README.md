@@ -67,6 +67,14 @@ npm run build
 
 Para validar localmente, execute `npm run build` e `npm run preview`; no Chrome DevTools, confira **Application > Manifest** e **Service Workers**. A instalação depende dos recursos oferecidos pelo navegador e sistema operacional; teste o fluxo manual em um dispositivo real.
 
+### PWA administrativo
+
+- O painel tem um manifesto próprio em `public/admin/manifest.webmanifest`, com escopo `/admin/` e ícones em `public/iconadm/`.
+- Um segundo Service Worker é registrado em `/admin/sw.js` com escopo `/admin/`. Ele não cria caches nem armazena respostas, dados da sessão ou conteúdo do Supabase. O Workbox do PWA público exclui os arquivos administrativos de seu precache.
+- Acesse `/admin/` para instalar o aplicativo separado. No Android e em navegadores compatíveis, use **Instalar aplicativo administrativo**; no iPhone/iPad, abra no Safari e use **Compartilhar > Adicionar à Tela de Início**.
+- Para testar, verifique no DevTools que `/` usa o manifesto e o Service Worker públicos e que `/admin/` usa o manifesto administrativo e o Service Worker com escopo `/admin/`. Confirme também os dois ícones na tela inicial.
+- A instalação não concede acesso: as rotas administrativas continuam usando a autenticação existente. A autorização administrativa e as políticas RLS atuais não distinguem administradores de outros usuários Supabase autenticados; ajuste essa política separadamente antes de tratar a autorização como proteção contra usuários comuns.
+
 ## Estrutura principal
 
 - `src/pages` — páginas públicas e administrativas
