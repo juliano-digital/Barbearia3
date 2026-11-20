@@ -3,7 +3,7 @@
   "name": "Barbearia Admin",
   "short_name": "Admin",
   "description": "Painel administrativo da barbearia.",
-  "start_url": "/admin/",
+  "start_url": "/admin/?source=admin-pwa",
   "scope": "/admin/",
   "display": "standalone",
   "orientation": "any",

@@ -8,6 +8,16 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const INSTALL_DISMISSED_KEY = 'barbearia-admin-pwa-install-dismissed';
+const ADMIN_APP_SESSION_KEY = 'barbearia-admin-pwa-context';
+const initialPathname = window.location.pathname;
+
+if (new URLSearchParams(window.location.search).get('source') === 'admin-pwa') {
+  try {
+    window.sessionStorage.setItem(ADMIN_APP_SESSION_KEY, 'true');
+  } catch {
+    // The start URL remains enough to detect this launch for the current page.
+  }
+}
 
 function isAdminPath(pathname: string) {
   return pathname === '/admin' || pathname.startsWith('/admin/');
@@ -15,7 +25,15 @@ function isAdminPath(pathname: string) {
 
 function isAppInstalled() {
   const nav = navigator as Navigator & { standalone?: boolean };
-  return window.matchMedia('(display-mode: standalone)').matches || nav.standalone === true;
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || nav.standalone === true;
+  if (!isStandalone) return false;
+  try {
+    return window.sessionStorage.getItem(ADMIN_APP_SESSION_KEY) === 'true'
+      || (isIosDevice() && isAdminPath(initialPathname));
+  } catch {
+    return new URLSearchParams(window.location.search).get('source') === 'admin-pwa'
+      || (isIosDevice() && isAdminPath(initialPathname));
+  }
 }
 
 function isIosDevice() {
@@ -182,7 +200,7 @@ export function AdminPwaExperience() {
                   ? 'No iPhone/iPad, instale pelo menu de compartilhamento do Safari.'
                   : ios
                     ? 'Abra esta página no Safari para instalar o aplicativo administrativo.'
-                    : `A instalação pelo botão não está disponível no ${getBrowserLabel()}.`}
+                    : `O ${getBrowserLabel()} não disponibilizou o botão nesta sessão. Verifique o menu do navegador para instalar.`}
             </p>
           </div>
           <button

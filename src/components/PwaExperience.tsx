@@ -43,6 +43,7 @@ export function PwaExperience() {
       }
     };
     const handleAppInstalled = () => {
+      if (isAdminPath) return;
       setInstalled(true);
       setInstallPrompt(null);
       setDismissed(true);
