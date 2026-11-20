@@ -11,7 +11,6 @@ import { AdminSettingsPage } from './pages/AdminSettingsPage';
 import { PublicBookingPage } from './pages/PublicBookingPage';
 import { isAdminAuthenticated, signOutAdmin } from './lib/supabase';
 import { PwaExperience } from './components/PwaExperience';
-import { AdminPwaExperience } from './components/AdminPwaExperience';
 import brandIcon from './assets/icon/192.png';
 
 const adminNav = [
@@ -29,7 +28,7 @@ function ProtectedAdminLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setReady(true);
     if (!isAdminAuthenticated()) {
-      navigate('/admin/', { replace: true });
+      navigate('/admin', { replace: true });
     }
   }, [navigate]);
 
@@ -39,7 +38,7 @@ function ProtectedAdminLayout({ children }: { children: React.ReactNode }) {
 
   const handleSignOut = async () => {
     await signOutAdmin();
-    navigate('/admin/', { replace: true });
+    navigate('/admin', { replace: true });
   };
 
   return (
@@ -124,7 +123,6 @@ export function App() {
   return (
     <BrowserRouter>
       <PwaExperience />
-      <AdminPwaExperience />
       <Routes>
         <Route path="/" element={<PublicBookingPage />} />
         <Route path="/agendar" element={<PublicBookingPage />} />

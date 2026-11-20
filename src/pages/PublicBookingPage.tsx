@@ -347,7 +347,7 @@ export function PublicBookingPage() {
             >
               WhatsApp
             </a>
-            <Link to="/admin/" className="rounded-full px-4 py-2 text-sm font-medium" style={{ backgroundColor: theme.scheduleButton, color: getContrastingTextColor(theme.scheduleButton) }}>
+            <Link to="/admin" className="rounded-full px-4 py-2 text-sm font-medium" style={{ backgroundColor: theme.scheduleButton, color: getContrastingTextColor(theme.scheduleButton) }}>
               Agendar
             </Link>
           </div>
