@@ -8,8 +8,9 @@ export default defineConfig({
       manifest: false,
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,jpg,jpeg,woff,woff2,ttf,otf,webmanifest}'],
-        globIgnores: ['admin/**', 'iconadm/admin-icon-*.png'],
+        globIgnores: ['admin/**', 'iconadm/**'],
         navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/^\/admin(?:\/|$)/],
         cleanupOutdatedCaches: true,
         clientsClaim: false,
         skipWaiting: false,
@@ -35,6 +36,14 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rolldownOptions: {
+      input: {
+        app: 'index.html',
+        admin: 'admin/index.html',
+      },
+    },
+  },
   server: {
     host: '0.0.0.0',
     port: 5173,
