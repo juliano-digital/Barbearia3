@@ -7,9 +7,17 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 }
 
+let pendingAdminInstallPrompt: BeforeInstallPromptEvent | null = null;
+
 const INSTALL_DISMISSED_KEY = 'barbearia-admin-pwa-install-dismissed';
 const ADMIN_APP_SESSION_KEY = 'barbearia-admin-pwa-context';
 const initialPathname = window.location.pathname;
+
+window.addEventListener('beforeinstallprompt', (event: Event) => {
+  if (!isAdminPath(window.location.pathname)) return;
+  event.preventDefault();
+  pendingAdminInstallPrompt = event as BeforeInstallPromptEvent;
+});
 
 if (new URLSearchParams(window.location.search).get('source') === 'admin-pwa') {
   try {
@@ -59,10 +67,11 @@ function getBrowserLabel() {
 export function AdminPwaExperience() {
   const { pathname } = useLocation();
   const adminPath = isAdminPath(pathname);
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(pendingAdminInstallPrompt);
   const [installed, setInstalled] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [showIosSteps, setShowIosSteps] = useState(false);
+  const [showBrowserSteps, setShowBrowserSteps] = useState(false);
   const [installError, setInstallError] = useState('');
   const [serviceWorkerError, setServiceWorkerError] = useState('');
 
@@ -103,12 +112,17 @@ export function AdminPwaExperience() {
       setInstallError('Não foi possível salvar as preferências de instalação neste navegador.');
     }
 
+    setInstallPrompt(pendingAdminInstallPrompt);
     setInstalled(isAppInstalled());
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
-      if (!isAppInstalled()) setInstallPrompt(event as BeforeInstallPromptEvent);
+      if (!isAppInstalled()) {
+        pendingAdminInstallPrompt = event as BeforeInstallPromptEvent;
+        setInstallPrompt(pendingAdminInstallPrompt);
+      }
     };
     const handleAppInstalled = () => {
+      pendingAdminInstallPrompt = null;
       setInstalled(true);
       setInstallPrompt(null);
     };
@@ -159,8 +173,10 @@ export function AdminPwaExperience() {
       await installPrompt.prompt();
       const { outcome } = await installPrompt.userChoice;
       if (outcome === 'accepted') setInstalled(true);
+      pendingAdminInstallPrompt = null;
       setInstallPrompt(null);
     } catch {
+      pendingAdminInstallPrompt = null;
       setInstallPrompt(null);
       setInstallError('Não foi possível iniciar a instalação. Tente novamente pelo menu do navegador.');
     }
@@ -179,6 +195,7 @@ export function AdminPwaExperience() {
 
   const ios = isIosDevice();
   const iosSafari = isIosSafari();
+  const android = /android/i.test(navigator.userAgent);
   const canPromptInstall = installPrompt !== null;
 
   return (
@@ -200,7 +217,7 @@ export function AdminPwaExperience() {
                   ? 'No iPhone/iPad, instale pelo menu de compartilhamento do Safari.'
                   : ios
                     ? 'Abra esta página no Safari para instalar o aplicativo administrativo.'
-                    : `O ${getBrowserLabel()} não disponibilizou o botão nesta sessão. Verifique o menu do navegador para instalar.`}
+                    : `O ${getBrowserLabel()} não disponibilizou o botão nesta sessão. Tente instalar pelo menu do navegador.`}
             </p>
           </div>
           <button
@@ -236,6 +253,28 @@ export function AdminPwaExperience() {
                 <li>Toque em Compartilhar no Safari.</li>
                 <li>Selecione “Adicionar à Tela de Início”.</li>
                 <li>Confirme a instalação do Barbearia Admin.</li>
+              </ol>
+            )}
+          </>
+        ) : !ios ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setShowBrowserSteps((visible) => !visible)}
+              aria-expanded={showBrowserSteps}
+              className="mt-4 w-full rounded-xl border border-[#d4af6b]/50 px-4 py-2.5 text-sm font-semibold text-[#e2c58f] transition hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af6b]"
+            >
+              {showBrowserSteps ? 'Ocultar instruções' : 'Como instalar pelo menu'}
+            </button>
+            {showBrowserSteps && (
+              <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-stone-300">
+                <li>Abra o menu principal do navegador.</li>
+                <li>
+                  {android
+                    ? 'Escolha “Instalar app” ou “Adicionar à tela inicial”.'
+                    : 'Escolha “Instalar Barbearia Admin” ou “Instalar esta página como app”.'}
+                </li>
+                <li>Confirme a instalação.</li>
               </ol>
             )}
           </>
